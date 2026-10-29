@@ -15,6 +15,7 @@
 package workflow
 
 import (
+	"github.com/google/uuid"
 	"google.golang.org/genai"
 
 	"google.golang.org/adk/v2/agent"
@@ -52,6 +53,8 @@ const WorkflowInputFunctionCallName = "adk_request_input"
 // Prefer a unique InterruptID per request. If req.InterruptID is
 // empty, [platform.NewUUID] generates one using the provider on ctx,
 // so hosts can control the correlation key in NodeState.Interrupts.
+// If the provider returns an empty string, a random UUID is used, so
+// the key is never empty.
 // You may also build a readable-but-unique ID (a stable prefix plus a
 // UUID). Avoid a fixed literal that recurs across separate runs in the
 // same session: clients such as the Dev UI track answered requests by
@@ -72,6 +75,11 @@ const WorkflowInputFunctionCallName = "adk_request_input"
 func NewRequestInputEvent(ctx agent.InvocationContext, req session.RequestInput) *session.Event {
 	if req.InterruptID == "" {
 		req.InterruptID = platform.NewUUID(ctx)
+		if req.InterruptID == "" {
+			// The scheduler ignores an empty ID, so the node would
+			// not pause for input.
+			req.InterruptID = uuid.NewString()
+		}
 	}
 
 	ev := session.NewEvent(ctx, ctx.InvocationID())
